@@ -278,11 +278,11 @@ or samples it from a set of checkpoints.
 
 def checker(x, y):
   u = x // 20
-  v = y // 20
+  v = y // 10
   if (u + v) % 2 == 0:
-    return "euEU"
-  else:
     return "aioAIO"
+  else:
+    return "etuETU"
 
 
 def checker2(x, y):
@@ -319,4 +319,4 @@ if __name__ == '__main__':
     rnn.train(args.epochs)
   if args.sample:
     print("Sampling")
-    rnn.raster_sample(args.initial, 100, os.path.join('./output', 'sample3.txt'), args.temperature, 80, 60, checker)
+    rnn.raster_sample(args.initial, 100, os.path.join('./output', 'sample2.txt'), args.temperature, 80, 60, checker)
