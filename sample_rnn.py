@@ -1,4 +1,3 @@
-# Trying an RNN in 
 
 import tensorflow as tf
 from tensorflow.keras.layers.experimental import preprocessing
@@ -6,6 +5,7 @@ from tensorflow.keras.layers.experimental import preprocessing
 import numpy as np
 import os
 import time
+import argparse
 
 # Import mlcompute module to use the optional set_mlc_device API for device selection with ML Compute.
 #from tensorflow.python.compiler.mlcompute import mlcompute
@@ -17,63 +17,18 @@ import time
 #path_to_file = tf.keras.utils.get_file('kailung.txt', 'https://www.gutenberg.org/files/1076/1076-0.txt')
 
 
-path_to_file = tf.keras.utils.get_file('farben.txt', 'https://www.gutenberg.org/files/50572/50572-0.txt')
-
-print("file " + path_to_file)
-
-# Read, then decode for py2 compat.
-text = open(path_to_file, 'rb').read().decode(encoding='utf-8')
-# length of text is the number of characters in it
-print(f'Length of text: {len(text)} characters')
-
-
-# The unique characters in the file
-vocab = sorted(set(text))
-print(f'{len(vocab)} unique characters')
-
-ids_from_chars = preprocessing.StringLookup(vocabulary=list(vocab), mask_token=None)
-
-chars_from_ids = preprocessing.StringLookup(vocabulary=ids_from_chars.get_vocabulary(), invert=True, mask_token=None)
-
-
-def text_from_ids(ids):
-  return tf.strings.reduce_join(chars_from_ids(ids), axis=-1)
-
-
-all_ids = ids_from_chars(tf.strings.unicode_split(text, 'UTF-8'))
-
-ids_dataset = tf.data.Dataset.from_tensor_slices(all_ids)
-
-seq_length = 100
-examples_per_epoch = len(text)//(seq_length+1)
-
-sequences = ids_dataset.batch(seq_length+1, drop_remainder=True)
-
-def split_input_target(sequence):
-    input_text = sequence[:-1]
-    target_text = sequence[1:]
-    return input_text, target_text
-
-dataset = sequences.map(split_input_target)
-
-for input_example, target_example in dataset.take(1):
-    print("Input :", text_from_ids(input_example).numpy())
-    print("Target:", text_from_ids(target_example).numpy())
+# TODO make these configurable
 
 BATCH_SIZE = 64
 BUFFER_SIZE = 10000
+EMBEDDING_DIM = 256
+RNN_UNITS = 1024
+SEQ_LENGTH = 100
+EPOCHS = 20
+CHECKPOINTS_DIR = 'training_checkpoints'
+DATA_DIR = 'data'
 
-dataset = (dataset.shuffle(BUFFER_SIZE).batch(BATCH_SIZE, drop_remainder=True).prefetch(tf.data.experimental.AUTOTUNE))
-
-# Length of the vocabulary in chars
-vocab_size = len(vocab)
-
-# The embedding dimension
-embedding_dim = 256
-
-# Number of RNN units
-rnn_units = 1024
-
+# keras.Model
 
 class MyModel(tf.keras.Model):
   def __init__(self, vocab_size, embedding_dim, rnn_units):
@@ -98,53 +53,7 @@ class MyModel(tf.keras.Model):
       return x
 
 
-model = MyModel(
-    # Be sure the vocabulary size matches the `StringLookup` layers.
-    vocab_size=len(ids_from_chars.get_vocabulary()),
-    embedding_dim=embedding_dim,
-    rnn_units=rnn_units)
-
-
-for input_example_batch, target_example_batch in dataset.take(1):
-    example_batch_predictions = model(input_example_batch)
-    print(example_batch_predictions.shape, "# (batch_size, sequence_length, vocab_size)")
-
-
-sampled_indices = tf.random.categorical(example_batch_predictions[0], num_samples=1)
-sampled_indices = tf.squeeze(sampled_indices, axis=-1).numpy()
-
-print("Input:\n", text_from_ids(input_example_batch[0]).numpy())
-print()
-print("Next Char Predictions:\n", text_from_ids(sampled_indices).numpy())
-
-loss = tf.losses.SparseCategoricalCrossentropy(from_logits=True)
-
-example_batch_loss = loss(target_example_batch, example_batch_predictions)
-mean_loss = example_batch_loss.numpy().mean()
-print("Prediction shape: ", example_batch_predictions.shape, " # (batch_size, sequence_length, vocab_size)")
-print("Mean loss:        ", mean_loss)
-
-print(tf.exp(mean_loss).numpy())
-
-model.compile(optimizer='adam', loss=loss)
-
-# Directory where the checkpoints will be saved
-checkpoint_dir = './training_checkpoints'
-# Name of the checkpoint files
-checkpoint_prefix = os.path.join(checkpoint_dir, "goethe_chkpt_{epoch}")
-
-checkpoint_callback = tf.keras.callbacks.ModelCheckpoint(
-    filepath=checkpoint_prefix,
-    save_weights_only=True)
-
-EPOCHS = 20
-
-print(dataset)
-
-history = model.fit(dataset, epochs=EPOCHS, callbacks=[checkpoint_callback])
-
-
-
+# Sampler
 
 class OneStep(tf.keras.Model):
   def __init__(self, model, chars_from_ids, ids_from_chars, temperature=1.0):
@@ -191,18 +100,159 @@ class OneStep(tf.keras.Model):
     return predicted_chars, states
 
 
-one_step_model = OneStep(model, chars_from_ids, ids_from_chars)
 
-start = time.time()
-states = None
-next_char = tf.constant(['ROMEO:'])
-result = [next_char]
 
-for n in range(1000):
-  next_char, states = one_step_model.generate_one_step(next_char, states=states)
-  result.append(next_char)
 
-result = tf.strings.join(result)
-end = time.time()
-print(result[0].numpy().decode('utf-8'), '\n\n' + '_'*80)
-print('\nRun time:', end - start)
+
+def split_input_target(sequence):
+  input_text = sequence[:-1]
+  target_text = sequence[1:]
+  return input_text, target_text
+
+
+# TODO - save out the vocab stuff so that sampling doesn't have to regenerate it
+
+class RNNText():
+  """
+A class which builds a model for an RNN to simulate text and either trains it
+or samples it from a set of checkpoints.
+
+"""
+
+  def __init__(self, name):
+    self.name = name
+    self.checkpoint_dir = os.path.join('.', CHECKPOINTS_DIR, name)
+    if not os.path.isdir(self.checkpoint_dir):
+      print(f'Making checkpoint directory {self.checkpoint_dir}')
+      os.makedirs(self.checkpoint_dir)
+    self.data_file = os.path.join('.', DATA_DIR, name + '.txt')
+
+
+  def text_from_ids(self, ids):
+    return tf.strings.reduce_join(self.chars_from_ids(ids), axis=-1)
+
+
+  def init(self, training_data):
+    if not os.path.isfile(self.data_file):
+      tf.keras.utils.get_file(self.data_file, training_data)
+
+    print("file = " + self.data_file)
+
+    # Read, then decode for py2 compat.
+    self.text = open(self.data_file, 'rb').read().decode(encoding='utf-8')
+    # length of text is the number of characters in it
+    print(f'Length of text: {len(self.text)} characters')
+
+    # The unique characters in the file
+    self.vocab = sorted(set(self.text))
+    print(f'{len(self.vocab)} unique characters')
+
+    self.ids_from_chars = preprocessing.StringLookup(vocabulary=list(self.vocab), mask_token=None)
+    self.chars_from_ids = preprocessing.StringLookup(vocabulary=self.ids_from_chars.get_vocabulary(), invert=True, mask_token=None)
+    self.model = MyModel(
+      # Be sure the vocabulary size matches the `StringLookup` layers.
+      vocab_size=len(self.ids_from_chars.get_vocabulary()),
+      embedding_dim=EMBEDDING_DIM,
+      rnn_units=RNN_UNITS)
+
+
+
+  def train(self, epochs):
+    self.all_ids = self.ids_from_chars(tf.strings.unicode_split(self.text, 'UTF-8'))
+    self.ids_dataset = tf.data.Dataset.from_tensor_slices(self.all_ids)
+    self.examples_per_epoch = len(self.text)//(SEQ_LENGTH + 1)
+    self.sequences = self.ids_dataset.batch(SEQ_LENGTH + 1, drop_remainder=True)
+
+    self.dataset = self.sequences.map(split_input_target)
+
+    for input_example, target_example in self.dataset.take(1):
+      print("Input :", self.text_from_ids(input_example).numpy())
+      print("Target:", self.text_from_ids(target_example).numpy())
+
+    self.dataset = (self.dataset.shuffle(BUFFER_SIZE).batch(BATCH_SIZE, drop_remainder=True).prefetch(tf.data.experimental.AUTOTUNE))
+
+    # Length of the vocabulary in chars
+    self.vocab_size = len(self.vocab)
+
+    for input_example_batch, target_example_batch in self.dataset.take(1):
+      example_batch_predictions = self.model(input_example_batch)
+      print(example_batch_predictions.shape, "# (batch_size, sequence_length, vocab_size)")
+
+    sampled_indices = tf.random.categorical(example_batch_predictions[0], num_samples=1)
+    sampled_indices = tf.squeeze(sampled_indices, axis=-1).numpy()
+
+    print("Input:\n", self.text_from_ids(input_example_batch[0]).numpy())
+    print()
+    print("Next Char Predictions:\n", self.text_from_ids(sampled_indices).numpy())
+
+    loss = tf.losses.SparseCategoricalCrossentropy(from_logits=True)
+
+    example_batch_loss = loss(target_example_batch, example_batch_predictions)
+    mean_loss = example_batch_loss.numpy().mean()
+    print("Prediction shape: ", example_batch_predictions.shape, " # (batch_size, sequence_length, vocab_size)")
+    print("Mean loss:        ", mean_loss)
+
+    print(tf.exp(mean_loss).numpy())
+
+    self.model.compile(optimizer='adam', loss=loss)
+
+    # Name of the checkpoint files
+    checkpoint_prefix = os.path.join(self.checkpoint_dir, "chkpt_{epoch}")
+
+    checkpoint_callback = tf.keras.callbacks.ModelCheckpoint(
+      filepath=checkpoint_prefix,
+      save_weights_only=True)
+
+    # print(dataset)
+
+    self.history = self.model.fit(self.dataset, epochs=epochs, callbacks=[checkpoint_callback])
+
+
+  def sample(self, initial, temperature, length):
+    print(f'loading latest checkpoint from {self.checkpoint_dir}')
+    latest = tf.train.latest_checkpoint(self.checkpoint_dir)
+    print(f'latest checkpoint = {latest}')
+    assert(latest)
+
+    self.model.load_weights(latest)
+
+    one_step_model = OneStep(self.model, self.chars_from_ids, self.ids_from_chars, temperature)
+
+    start = time.time()
+    states = None
+    next_char = tf.constant([initial])
+    result = [next_char]
+
+    for n in range(length):
+      next_char, states = one_step_model.generate_one_step(next_char, states=states)
+      result.append(next_char)
+
+    result = tf.strings.join(result)
+    end = time.time()
+    print(result[0].numpy().decode('utf-8'), '\n\n' + '_'*80)
+    print('\nRun time:', end - start)
+
+
+
+
+
+if __name__ == '__main__':
+  parser = argparse.ArgumentParser()
+  parser.add_argument("-n", "--name", type=str, required=True, help="name of this RNN")
+  parser.add_argument("-u", "--url", type=str, help="url of text to train from")
+  parser.add_argument("-f", "--fit", action='store_true', help="Train the model")
+  parser.add_argument("-e", "--epochs", type=int, default=EPOCHS, help="Number of training epochs to train for")
+  parser.add_argument("-s", "--sample", action='store_true', help="sample from latest checkpoint")
+  parser.add_argument("-i", "--initial", type=str, default="start", help="Initial string")
+  parser.add_argument("-l", "--length", type=int, default=1000, help="Length of sample in characters")
+  parser.add_argument("-t", "--temperature", type=float, default=1.0, help="Sample temperature")
+  args = parser.parse_args()
+  print(args)
+  rnn = RNNText(args.name)
+  rnn.init(args.url)
+  if args.fit:
+    print("Training")
+    rnn.train(args.epochs)
+  if args.sample:
+    print("Sampling")
+    rnn.sample(args.initial, args.temperature, args.length)
