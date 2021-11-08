@@ -56,7 +56,7 @@ class MyModel(tf.keras.Model):
 # Sampler
 
 class OneStep(tf.keras.Model):
-  def __init__(self, model, chars_from_ids, ids_from_chars, temperature=1.0):
+  def __init__(self, model, chars_from_ids, ids_from_chars, temperature=1.0, suppress=""):
     super().__init__()
     self.temperature = temperature
     self.model = model
@@ -64,14 +64,16 @@ class OneStep(tf.keras.Model):
     self.ids_from_chars = ids_from_chars
 
     # Create a mask to prevent "[UNK]" from being generated.
-    skip_ids = self.ids_from_chars(['[UNK]'])[:, None]
+    # plus lipograms
+
+    skip_ids = self.ids_from_chars(list(suppress) + ['[UNK]'])[:, None]
     sparse_mask = tf.SparseTensor(
         # Put a -inf at each bad index.
         values=[-float('inf')]*len(skip_ids),
         indices=skip_ids,
         # Match the shape to the vocabulary
         dense_shape=[len(ids_from_chars.get_vocabulary())])
-    self.prediction_mask = tf.sparse.to_dense(sparse_mask)
+    self.prediction_mask = tf.sparse.to_dense(tf.sparse.reorder(sparse_mask))
 
   @tf.function
   def generate_one_step(self, inputs, states=None):
@@ -208,7 +210,7 @@ or samples it from a set of checkpoints.
     self.history = self.model.fit(self.dataset, epochs=epochs, callbacks=[checkpoint_callback])
 
 
-  def sample(self, initial, temperature, length):
+  def sample(self, initial, temperature, length, suppress):
     print(f'loading latest checkpoint from {self.checkpoint_dir}')
     latest = tf.train.latest_checkpoint(self.checkpoint_dir)
     print(f'latest checkpoint = {latest}')
@@ -216,7 +218,7 @@ or samples it from a set of checkpoints.
 
     self.model.load_weights(latest)
 
-    one_step_model = OneStep(self.model, self.chars_from_ids, self.ids_from_chars, temperature)
+    one_step_model = OneStep(self.model, self.chars_from_ids, self.ids_from_chars, temperature, suppress)
 
     start = time.time()
     states = None
@@ -246,6 +248,7 @@ if __name__ == '__main__':
   parser.add_argument("-i", "--initial", type=str, default="start", help="Initial string")
   parser.add_argument("-l", "--length", type=int, default=1000, help="Length of sample in characters")
   parser.add_argument("-t", "--temperature", type=float, default=1.0, help="Sample temperature")
+  parser.add_argument("-o", "--oulipo", type=str, help="Characters to suppress")  
   args = parser.parse_args()
   print(args)
   rnn = RNNText(args.name)
@@ -255,4 +258,4 @@ if __name__ == '__main__':
     rnn.train(args.epochs)
   if args.sample:
     print("Sampling")
-    rnn.sample(args.initial, args.temperature, args.length)
+    rnn.sample(args.initial, args.temperature, args.length, args.oulipo)
