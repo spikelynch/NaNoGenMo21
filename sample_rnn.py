@@ -62,20 +62,23 @@ class OneStep(tf.keras.Model):
     self.model = model
     self.chars_from_ids = chars_from_ids
     self.ids_from_chars = ids_from_chars
+    self.mask(suppress)
+
+  def mask(self, suppress=""):
 
     # Create a mask to prevent "[UNK]" from being generated.
     # plus lipograms
-
     skip_ids = self.ids_from_chars(list(suppress) + ['[UNK]'])[:, None]
     sparse_mask = tf.SparseTensor(
         # Put a -inf at each bad index.
         values=[-float('inf')]*len(skip_ids),
         indices=skip_ids,
         # Match the shape to the vocabulary
-        dense_shape=[len(ids_from_chars.get_vocabulary())])
+        dense_shape=[len(self.ids_from_chars.get_vocabulary())])
     self.prediction_mask = tf.sparse.to_dense(tf.sparse.reorder(sparse_mask))
 
-  @tf.function
+
+  # @tf.function
   def generate_one_step(self, inputs, states=None):
     # Convert strings to token IDs.
     input_chars = tf.strings.unicode_split(inputs, 'UTF-8')
@@ -211,10 +214,7 @@ or samples it from a set of checkpoints.
 
 
   def sample(self, initial, temperature, length, suppress):
-    print(f'loading latest checkpoint from {self.checkpoint_dir}')
     latest = tf.train.latest_checkpoint(self.checkpoint_dir)
-    print(f'latest checkpoint = {latest}')
-    assert(latest)
 
     self.model.load_weights(latest)
 
@@ -236,6 +236,67 @@ or samples it from a set of checkpoints.
 
 
 
+  def raster_sample(self, initial, warmup, outfile, temperature, linelength, lines, lipofn):
+    latest = tf.train.latest_checkpoint(self.checkpoint_dir)
+
+    self.model.load_weights(latest)
+
+    one_step_model = OneStep(self.model, self.chars_from_ids, self.ids_from_chars, temperature)
+
+    start = time.time()
+    states = None
+    next_char = tf.constant([initial])
+    output = []
+
+    for n in range(warmup):
+      next_char, states = one_step_model.generate_one_step(next_char, states=states)
+
+    for y in range(lines):
+      x = 0
+      result = ''
+      lastspace = False
+      while x < linelength:
+        one_step_model.mask(lipofn(x, y))
+        next_char, states = one_step_model.generate_one_step(next_char, states=states)
+        schar = next_char[0].numpy().decode('utf-8')
+        if schar.isspace():
+          if not lastspace:
+            result += ' '
+            x += 1
+            lastspace = True
+        else:
+          result += schar
+          x += 1
+          lastspace = False
+      print(result)
+      output.append(result)
+
+    with open(outfile, 'w') as of:
+      for l in output:
+        of.write(l + "\n")
+
+
+def checker(x, y):
+  u = x // 20
+  v = y // 20
+  if (u + v) % 2 == 0:
+    return "euEU"
+  else:
+    return "aioAIO"
+
+
+def checker2(x, y):
+  u = x // 20
+  v = y // 20
+  if (u + v) % 2 == 0:
+    return "acemnorsuvwxzABCDEFGHIJKLMNOPQRSTUVXWYZ"
+  else:
+    return "bdfghijklpqty"
+
+
+def nullipo(x, y):
+  return "Ee"
+
 
 
 if __name__ == '__main__':
@@ -248,7 +309,7 @@ if __name__ == '__main__':
   parser.add_argument("-i", "--initial", type=str, default="start", help="Initial string")
   parser.add_argument("-l", "--length", type=int, default=1000, help="Length of sample in characters")
   parser.add_argument("-t", "--temperature", type=float, default=1.0, help="Sample temperature")
-  parser.add_argument("-o", "--oulipo", type=str, help="Characters to suppress")  
+  parser.add_argument("-o", "--oulipo", type=str, help="Characters to suppress")
   args = parser.parse_args()
   print(args)
   rnn = RNNText(args.name)
@@ -258,4 +319,4 @@ if __name__ == '__main__':
     rnn.train(args.epochs)
   if args.sample:
     print("Sampling")
-    rnn.sample(args.initial, args.temperature, args.length, args.oulipo)
+    rnn.raster_sample(args.initial, 100, os.path.join('./output', 'sample3.txt'), args.temperature, 80, 60, checker)
