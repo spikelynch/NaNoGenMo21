@@ -53,31 +53,30 @@ class MyModel(tf.keras.Model):
       return x
 
 
-# Sampler
+# Sampler with 
 
 class OneStep(tf.keras.Model):
-  def __init__(self, model, chars_from_ids, ids_from_chars, temperature=1.0, suppress=""):
+  def __init__(self, model, chars_from_ids, ids_from_chars, temperature=1.0, mask_weights={}):
     super().__init__()
     self.temperature = temperature
     self.model = model
     self.chars_from_ids = chars_from_ids
     self.ids_from_chars = ids_from_chars
-    self.mask(suppress)
+    self.mask(mask_weights)
 
-  def mask(self, suppress=""):
+  def mask(self, weights={}):
 
     # Create a mask to prevent "[UNK]" from being generated.
     # plus lipograms
-    schars = [ '[UNK]' ]
-    if suppress:
-      suppress = suppress.lower() + suppress.upper()
-      schars = list(suppress) + schars
+    weights['[UNK]'] = -float('inf');
 
-    skip_ids = self.ids_from_chars(schars)[:, None]
+    schars = list(weights.keys())
+    wids = self.ids_from_chars(schars)[:, None]
+    wval = [ weights[s] for s in schars ]
+
     sparse_mask = tf.SparseTensor(
-        # Put a -inf at each bad index.
-        values=[-float('inf')]*len(skip_ids),
-        indices=skip_ids,
+        values=wval,              #[-float('inf')]*len(skip_ids),
+        indices=wids,
         # Match the shape to the vocabulary
         dense_shape=[len(self.ids_from_chars.get_vocabulary())])
     self.prediction_mask = tf.sparse.to_dense(tf.sparse.reorder(sparse_mask))
@@ -243,6 +242,10 @@ or samples it from a set of checkpoints.
     print('\nRun time:', end - start)
 
 
+def make_weights(oulipo):
+  glyphs = oulipo.upper() + oulipo.lower()
+  weights = { g: -float('inf') for g in set(glyphs) }
+  return weights
 
 
 
@@ -265,4 +268,5 @@ if __name__ == '__main__':
     rnn.train(args.epochs)
   if args.sample:
     print("Sampling")
-    rnn.sample(args.initial, args.temperature, args.length, args.oulipo)
+    oulipo_weights = make_weights(args.oulipo)
+    rnn.sample(args.initial, args.temperature, args.length, oulipo_weights)

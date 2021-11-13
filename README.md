@@ -15,3 +15,8 @@ map letters to RGB values according to my synaesthesia
 
 rasterised lipogram - take an image and generate text such that each part of the printed text is "coloured" according to the RGB -> letter mapping
 
+Try to make it work with headings and paragraph breaks
+
+
+Retrain the RNN with some preprocessing to remove weird characters and improve the formatting
+
