@@ -243,6 +243,8 @@ or samples it from a set of checkpoints.
 
 
 def make_weights(oulipo):
+  if not oulipo:
+    oulipo = ""
   glyphs = oulipo.upper() + oulipo.lower()
   weights = { g: -float('inf') for g in set(glyphs) }
   return weights
