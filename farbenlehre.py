@@ -14,6 +14,14 @@ import tensorflow as tf
 # TODO: try to make it left-justified - keep going until you hit a space when past linelength
 # and then do a newline
 
+
+def test_fn(label, lipofn, width, height):
+  for x in range(0, width, 10):
+    for y in range(0, height, 10):
+      val = lipofn(x, y)
+      print(f'>> {label} {x} {y} {val}')
+
+
 class RasterLipo(RNNText):
 
   def raster_sample(self, initial, warmup, outfile, temperature, linelength, lines, pagefns):
@@ -29,8 +37,13 @@ class RasterLipo(RNNText):
     for n in range(warmup):
       next_char, states = one_step_model.generate_one_step(next_char, states=states)
 
-    for lipofn in pagefns:
+    for page in pagefns:
+      label = page[0]
+      lipofn = page[1]
+      #test_fn(label, lipofn, linelength, lines)
       y = 0
+      print(label)
+      outfile.write(label + '\n')
       while y < lines:
         x = 0
         result = ''
@@ -143,8 +156,12 @@ def make_circle_gradient_fn(width, height, gradientf):
   return lambda x, y: gradientf(math.dist([2 * (x - width * 0.5) / width, 2 * (y - height * 0.5) / height], [0,0]))
 
 
+def circle_gradient(width, height, x, y, k):
+  return k * (math.dist([2 * (x - width * 0.5) / width, 2 * (y - height * 0.5) / height], [0,0]) - 1) + 1
+
+
 def int_circle(width, height, x, y):
-  if math.dist([2 * (x - width * 0.5) / width, 2 * (y - height * 0.5) / height], [0,0]) > 1:
+  if math.dist([2 * (x - width * 0.5) / width, 2 * (y - height * 0.5) / height], [0,0]) < 0.8:
     return 0
   else:
     return 1
@@ -168,9 +185,13 @@ def checker(xsize, ysize, x, y):
 
 def party_per_bend(width, height, x, y):
   if x / width < y / height:
-    return 0
-  else:
     return 1
+  else:
+    return 0
+
+def party_per_bend_gradient(width, height, x, y, k):
+  v =  k * (y / height - x / width) * 0.5 + 0.5
+  return v
 
 
 
@@ -181,6 +202,39 @@ def make_constraint(pattern, width, height, gradientf):
     return lambda x, y: gradientf(int_circle(width, height, x, y))
   elif pattern == 'party':
     return lambda x, y: gradientf(party_per_bend(width, height, x, y))
+
+def make_k_constraint(pattern, width, height, k, gradientf):
+  if pattern == 'circle':
+    return lambda x, y: gradientf(circle_gradient(width, height, x, y, k))
+  elif pattern == 'party':
+    return lambda x, y: gradientf(party_per_bend_gradient(width, height, x, y, k))
+
+
+
+def make_permutations(seq, remain):
+  """
+  Recursively generates a path through permutations of all pairs of colours such that
+  the last of pair n and the first of pair n + 1 match
+  """
+
+  tail = remain[:]
+  start = seq[-1]
+  possibilities = [ p for p in tail if p[0] == start[1] ]
+  if possibilities:
+    p = possibilities[-1]
+    r = [ q for q in tail if q[0] != p[0] or q[1] != p[1] ]
+    if r:
+      return make_permutations(seq + [p], r)
+    else:
+      return seq + [p]
+  else:
+    return False
+
+def get_permutations(colours):
+  c = list(itertools.permutations(colours, 2))
+  return make_permutations([ c[0] ], c[1:])
+
+
 
 
 if __name__ == '__main__':
@@ -196,7 +250,7 @@ if __name__ == '__main__':
 
   colours = cf['colours']
   corder = cf['order']
-  patterns = cf['patterns']
+  k = cf['steepness']
   strength = int(cf['strength'])
   width = int(cf['page']['width'])
   height = int(cf['page']['height'])
@@ -204,14 +258,16 @@ if __name__ == '__main__':
   os.makedirs(os.path.join('output', args.outdir))
 
   outfile = os.path.join('output', args.outdir, 'pages.txt')
+
+  sequence = get_permutations(corder)
+
   lipofns = []
-  for c1 in corder:
-    for c2 in corder:
-      a = lipo_set(colours[c1])
-      b = lipo_set(colours[c2])
-      gfn = make_gradient_fn(b, a, strength)
-      for p in patterns:
-        lipofns.append(make_constraint(p, width, height, gfn))
+  for pair in sequence:
+    a = lipo_set(colours[pair[0]])
+    b = lipo_set(colours[pair[1]])
+    gfn = make_gradient_fn(a, b, strength)
+    lipofns.append((f'diag: {pair[0]}->{pair[1]}', make_k_constraint('party', width, height, k, gfn)))
+    lipofns.append((f'circle: {pair[0]}, {pair[1]}', make_k_constraint('circle', width, height, k, gfn)))
 
   with open(outfile, 'w') as of:
     rnn.raster_sample('test', 80, of, args.temperature, width, height, lipofns)

@@ -45,14 +45,34 @@ def find_tailfirst(seq, remain):
 		if r:
 			find_tailfirst(seq + [p], r)
 		else:
-			print(' '.join([ f"{q[0]}{q[1]}" for q in seq + [p]]))
+			print('\n'.join([ f"{q[0]}-{q[1]}" for q in seq + [p]]))
 	else:
 		print('blocked')
 
+def make_permutations(seq, remain):
+  tail = remain[:]
+  start = seq[-1]
+  possibilities = [ p for p in tail if p[0] == start[1] ]
+  if possibilities:
+    p = possibilities[-1]
+    r = [ q for q in tail if q[0] != p[0] or q[1] != p[1] ]
+    if r:
+      return make_permutations(seq + [p], r)
+    else:
+      return seq + [p]
+  else:
+    return False
 
-for n in range(2, 20):
-	l = range(n)
-	c = list(itertools.permutations(l, 2))
-	find_tailfirst([ c[0] ], c[1:])
+
+
+n = 8
+l = [ "white", "blue", "green", "yellow", "orange", "red", "purple", "gray", "black" ]
+c = list(itertools.permutations(l, 2))
+sequence = make_permutations([ c[0] ], c[1:])
+print(len(sequence))
+
+if sequence:
+	for pair in sequence:
+		print(f'{pair[0]} -> {pair[1]}\n')
 
 
