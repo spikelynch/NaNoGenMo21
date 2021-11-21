@@ -11,8 +11,6 @@ import math
 import tensorflow as tf
 
 
-# TODO: try to make it left-justified - keep going until you hit a space when past linelength
-# and then do a newline
 
 
 def test_fn(label, lipofn, width, height):
@@ -234,6 +232,11 @@ def get_permutations(colours):
   c = list(itertools.permutations(colours, 2))
   return make_permutations([ c[0] ], c[1:])
 
+def complement(colour, base, seq):
+  s = [ c for c in seq if c != base ]
+  l = len(s)
+  return s[(s.index(colour) + l // 2) % l]
+
 
 
 
@@ -265,9 +268,12 @@ if __name__ == '__main__':
   for pair in sequence:
     a = lipo_set(colours[pair[0]])
     b = lipo_set(colours[pair[1]])
-    gfn = make_gradient_fn(a, b, strength)
-    lipofns.append((f'diag: {pair[0]}->{pair[1]}', make_k_constraint('party', width, height, k, gfn)))
-    lipofns.append((f'circle: {pair[0]}, {pair[1]}', make_k_constraint('circle', width, height, k, gfn)))
+    comp = complement(pair[0], pair[1], corder)
+    c = lipo_set(colours[comp])
+    gfn1 = make_gradient_fn(a, b, strength)
+    lipofns.append((f'diag: {pair[0]}->{pair[1]}', make_k_constraint('party', width, height, k, gfn1)))
+    gfn2 = make_gradient_fn(c, b, strength)
+    lipofns.append((f'circle: {pair[1]}, {comp}', make_k_constraint('circle', width, height, k, gfn2)))
 
   with open(outfile, 'w') as of:
-    rnn.raster_sample('test', 80, of, args.temperature, width, height, lipofns)
+    rnn.raster_sample("GOETHE'S THEORY OF COLOURS", 0, of, args.temperature, width, height, lipofns)

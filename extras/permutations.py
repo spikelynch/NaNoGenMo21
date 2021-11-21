@@ -64,15 +64,17 @@ def make_permutations(seq, remain):
     return False
 
 
+def complement(colour, base, seq):
+	s = [ c for c in seq if c != base ]
+	return s[(s.index(colour) + 4) % 8]
+
+
 
 n = 8
 l = [ "white", "blue", "green", "yellow", "orange", "red", "purple", "gray", "black" ]
 c = list(itertools.permutations(l, 2))
 sequence = make_permutations([ c[0] ], c[1:])
-print(len(sequence))
 
-if sequence:
-	for pair in sequence:
-		print(f'{pair[0]} -> {pair[1]}\n')
-
-
+for pair in sequence:
+	c = complement(pair[0], pair[1], l)
+	print(f"{pair} {c}")

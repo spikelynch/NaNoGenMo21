@@ -238,7 +238,10 @@ or samples it from a set of checkpoints.
 
     result = tf.strings.join(result)
     end = time.time()
-    print(result[0].numpy().decode('utf-8'), '\n\n' + '_'*80)
+    s = result[0].numpy().decode('utf-8')
+    print(s, '\n\n' + '_'*80)
+    print(str(list(s)) + '\n\n')
+
     print('\nRun time:', end - start)
 
 
