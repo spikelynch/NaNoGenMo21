@@ -8,6 +8,7 @@ import json
 import itertools
 import os
 import math
+import yaml
 import tensorflow as tf
 
 
@@ -38,10 +39,7 @@ class RasterLipo(RNNText):
     for page in pagefns:
       label = page[0]
       lipofn = page[1]
-      #test_fn(label, lipofn, linelength, lines)
       y = 0
-      print(label)
-      outfile.write(label + '\n')
       while y < lines:
         x = 0
         result = ''
@@ -53,7 +51,7 @@ class RasterLipo(RNNText):
           schar = next_char[0].numpy().decode('utf-8')
           if schar.isspace():
             if len(whitespace) > 0:
-              if whitespace == '\r\n\r\n':
+              if whitespace == '\r\n':
                 result += "\n"
                 line = False
                 whitespace = ''
@@ -73,8 +71,8 @@ class RasterLipo(RNNText):
             whitespace = ''
         print(result)
         outfile.write(result + "\n")
-      print("\n---------------\n")
-      outfile.write("\n---------------\n")
+      print("```\n\n\\newpage\n```\n")
+      outfile.write("```\n\n\\newpage\n```\n")
 
 
 
@@ -240,11 +238,12 @@ def complement(colour, base, seq):
 
 
 
+
+
 if __name__ == '__main__':
   parser = argparse.ArgumentParser()
   parser.add_argument("-c", "--config", type=str, default="config.json", help="JSON config file")
   parser.add_argument("-n", "--name", type=str, required=True, help="name of this RNN")
-  parser.add_argument("-t", "--temperature", type=float, default=1.0, help="Sample temperature")
   parser.add_argument("-o", "--outdir", type=str, default="output",  required=True, help="Output directory")
   args = parser.parse_args()
   cf = load_config(args.config)
@@ -257,10 +256,11 @@ if __name__ == '__main__':
   strength = int(cf['strength'])
   width = int(cf['page']['width'])
   height = int(cf['page']['height'])
+  temperature = float(cf['temperature'])
 
   os.makedirs(os.path.join('output', args.outdir))
 
-  outfile = os.path.join('output', args.outdir, 'pages.txt')
+  outfile = os.path.join('output', args.outdir, cf['output'])
 
   sequence = get_permutations(corder)
 
@@ -276,4 +276,6 @@ if __name__ == '__main__':
     lipofns.append((f'circle: {pair[1]}, {comp}', make_k_constraint('circle', width, height, k, gfn2)))
 
   with open(outfile, 'w') as of:
-    rnn.raster_sample("GOETHE'S THEORY OF COLOURS", 0, of, args.temperature, width, height, lipofns)
+    of.write('---\n' + yaml.dump(cf['latex']) + '---\n\\newpage\n```\n')
+    rnn.raster_sample("GOETHE'S THEORY OF COLOURS", 0, of, temperature, width, height, lipofns[:6])
+    of.write('```\n\n')
