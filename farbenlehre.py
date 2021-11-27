@@ -1,4 +1,4 @@
-# functional oulipo
+# 
 
 
 from rnntext import RNNText, OneStep
@@ -11,6 +11,10 @@ import math
 import yaml
 import tensorflow as tf
 
+from tensorflow.python.compiler.mlcompute import mlcompute
+
+# Select CPU device.
+mlcompute.set_mlc_device(device_name='gpu') # Available options are 'cpu', 'gpu', and 'any'.
 
 
 
