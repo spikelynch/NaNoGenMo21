@@ -1,0 +1,33 @@
+{
+	"latex": {
+		"title": "Colourless Light",
+		"geometry": "margin=3.6cm",
+		"linkcolor": "blue"
+	},
+	"appendix": "README.md",
+	"output": "test",
+	"temperature": 0.4,
+	"page": {
+		"width": 70,
+		"height": 30
+	},
+	"order": [ "white", "blue", "green", "yellow", "orange", "red", "purple", "gray", "black" ],
+	"strength": 7,
+	"steepness": 3,
+	"colours": {
+		"red": "ejs3",
+		"purple": "dpru89",
+		"blue": "bkmnw4",
+		"green": "t2",
+		"yellow": "cl7",
+		"orange": "fghxq5",
+		"white": "aiy1",
+		"gray": "wzv6",
+		"black": "o0"
+	}
+}
+
+
+
+
+
