@@ -248,7 +248,8 @@ if __name__ == '__main__':
   parser = argparse.ArgumentParser()
   parser.add_argument("-c", "--config", type=str, default="config.json", help="JSON config file")
   parser.add_argument("-n", "--name", type=str, required=True, help="name of this RNN")
-  parser.add_argument("-o", "--outdir", type=str, default="output",  required=True, help="Output directory")
+  parser.add_argument("-s", "--sequence", action='store_true', default=False, help="Output the colour sequence, don't generate text")
+  parser.add_argument("-o", "--outdir", type=str, default="output", help="Output directory")
   args = parser.parse_args()
   cf = load_config(args.config)
   rnn = RasterLipo(args.name)
@@ -262,13 +263,18 @@ if __name__ == '__main__':
   height = int(cf['page']['height'])
   temperature = float(cf['temperature'])
 
-  os.makedirs(os.path.join('output', args.outdir))
-
-  outfile = os.path.join('output', args.outdir, cf['output'])
 
   sequence = get_permutations(corder)
 
+  if args.sequence:
+    for pair in sequence:
+      print(f'{pair[0]} - {pair[1]}')
+    exit(0)
+
+  os.makedirs(os.path.join('output', args.outdir))
+
   lipofns = []
+
   for pair in sequence:
     a = lipo_set(colours[pair[0]])
     b = lipo_set(colours[pair[1]])
@@ -279,7 +285,16 @@ if __name__ == '__main__':
     gfn2 = make_gradient_fn(c, b, strength)
     lipofns.append((f'circle: {pair[1]}, {comp}', make_k_constraint('circle', width, height, k, gfn2)))
 
+  outfile = os.path.join('output', args.outdir, cf['output'])
+  print(f"writing {outfile}")
   with open(outfile, 'w') as of:
     of.write('---\n' + yaml.dump(cf['latex']) + '---\n\\newpage\n```\n')
-    rnn.raster_sample("GOETHE'S THEORY OF COLOURS", 0, of, temperature, width, height, lipofns[:6])
+    rnn.raster_sample("GOETHE'S THEORY OF COLOURS.\n", 0, of, temperature, width, height, lipofns)
     of.write('```\n\n')
+    if cf['appendix']:
+      with open(cf['appendix'], 'r') as af:
+        appendix = af.read()
+        of.write('## Appendix\n')
+        of.write(appendix)
+        of.write('\n')
+

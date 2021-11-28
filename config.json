@@ -1,17 +1,22 @@
 {
 	"latex": {
 		"title": "Colourless Light",
+		"subtitle": "NaNoGenMo 2021",
+		"author": "Mike Lynch",
 		"geometry": "margin=3.6cm",
-		"linkcolor": "blue"
+		"linkcolor": "blue",
+		"monofont": "DejaVu Sans Mono",
+		"mainfont": "Palatino"
+
 	},
 	"appendix": "README.md",
-	"output": "test",
+	"output": "colourless_light.md",
 	"temperature": 0.4,
 	"page": {
-		"width": 70,
-		"height": 30
+		"width": 75,
+		"height": 40
 	},
-	"order": [ "white", "blue", "green", "yellow", "orange", "red", "purple", "gray", "black" ],
+	"order": [ "black", "blue", "green", "yellow", "orange", "red", "purple", "gray", "white" ],
 	"strength": 7,
 	"steepness": 3,
 	"colours": {
@@ -22,7 +27,7 @@
 		"yellow": "cl7",
 		"orange": "fghxq5",
 		"white": "aiy1",
-		"gray": "wzv6",
+		"gray": "zv6",
 		"black": "o0"
 	}
 }

@@ -1,132 +1,119 @@
-## Appendix
-
-_Colourless Light_ is an attempt to visualise my own letter-number synaesthesia by tweaking the output of an RNN. I've noticed that lipograms - texts which avoid certain letters, the most famous of which is George Perec's novel _La Disparition_, translated into English as _A Void_ - look different in that area of my mind's eye in which words have colours. The letter E is a strong bright red, and most of the contribution to a word's synaesthetic hue comes from the vowels, so Perec's novel, getting its vowel colours from A (white), I (transparent), O (black) and U (deep purple), is darker and shifted towards the blue end of the spectrum.
+_Colourless Light_ is an attempt to use my own grapheme-colour synaesthesia to modulate the output of a recurrent neural network so that the distribution of letters on the page forms a pattern. I've always had strong one-way associations between letters, numbers and colours - the glyphs evoke colours, but the colours don't evoke glyphs - and I have a taste for lipograms, texts which avoid certain letters, the most famous of which is Georges Perec's novel _La Disparition_, translated into English as _A Void_ by Gilbert Adair, and one of the things which strikes me about them is that they are different colour, in the synaesthetic sense, from a normal text. The letter E, for me, is a strong, bright red, and most of the contribution to a word's synaesthetic hue comes from its vowels, so when I read Perec's novel, the vowel colours from A (white), I (transparent), O (black) and U (deep purple), make the text seem different: darker, less saturated, closer to the blue end of the spectrum.
 
 I've been tinkering with lipogrammatic RNNs for a while now - for a recent experiment see [gravidum cor](https://bots.mikelynch.org/gravidum_cor/), a Mastodon bot which generates a simulation of Burton's Anatomy of Melancholy without E. What I wanted to do for this year's NaNoGenMo was make an RNN generate text with a different mixture of letters on different parts of the page. I had no idea how this would look to my synaesthetic sense - whether the invisible colours of the letters would translate when arranged spatially in this way.
 
-At first I had the idea that one could take an image and map its RGB components onto the appropriate letters and make a "picture", but my early experiments with rendering two different constrained outputs into a checkerboard proved that patterns on a scale of ten or so letters weren't really detectable. For example, the following is a rendering of a checkerboard pattern where the squares are 20 characters wide and 10 lines tall, and the colours alternate between black and red. (Black has a lot of 'o' and red has a lot of 'e' and 's')
+At first I had the idea that one could take an image and map its RGB components onto the appropriate letters and make a "picture", but my early experiments with rendering two different constrained outputs into a checkerboard proved that patterns on a scale of ten or so letters weren't really detectable. I settled on using two large-scale patterns: dividing the page into two halves along a diagonal, and placing a circle of one colour on a background of another. The colour combinations are chosen by an algorithm which moves through every combination of the eight basic colours in turn, ensuring that each combination of two colours is rendered with each of the geometrical patterns.
 
-### Black and red checkerboard
+I found that my initial idea of rendering different colours by suppressing letters didn't work very well. If I suppressed all letters other than those which look red to me (E, J, S and 3) the resulting output was too constrained to make sense. I tried another strategy, of trying to make red text by suppressing the letters and numbers which are complementary to it, but this didn't produce results which looked red. Many samples of experiments in this vein can be found [in the outputs/suppresssion/ folder in the repository](https://github.com/spikelynch/NaNoGenMo21/tree/main/output/suppression).
 
-```
- colours of our own surfaces essentially observations on others ese oneselfess, 
-on the other own colours seen by semi-transparent forms, and seeses to see these
- operations of our own surfaces essays enough to operates on sleers of semi-tran
-sparent modes of other sessees, essesses of objects so often seese entereds thes
-e opposite opposite sessesses is seen studd on our observations seemed the sesse
-st of oil-point of openess seems even association of our own thees seems even se
-en by observed on objects seen as easies over a landow on a straightly every ses
-tood of opacity on the subjective experiments. The observations as sussesses ess
-oof to our own operates essential examples of opacity or opaque seeses to see th
-e observer of our own terms essees, esesons itself on our own surfaces seesest e
-ssential esteemed eeger, colours of our seesest essentials espooldon, as opposed
- to see a seemed see in opposite outlines essesses to some soot, woology, soon o
-bserves: so essented to other some of the semi-opaces seems on our observations 
-should even executes those of opacity or seen through a sessoot of opacity on ot
-her seeses, especially of our object, or even seese the exesono it. To do with o
-bjects XIX. Desserse of Optics, of those experiments seems evoke ourselves of ou
-r seeseses, essessitions on our observations seems even asserted that other oper
-ations seems essential to others of objects seese to see the observations of the
-se essential terms equivalent to observes, seen sussesses each other on other ob
-jects seen the ese effects of our own operates essential essooce only, to observ
-```
-
-I settled on two large patterns: dividing the page into two on a diagonal, and a circle rendered on a contrasting background. The two samples following are in red and green (the latter has a lot of 't'):
-
-
-### Green and red divided diagonally
+So, rather than suppressing letters, I modified the RNN to increase the probability of the relevant letter set. Using [this tutorial](https://www.tensorflow.org/text/tutorials/text_generation) as a starting point, I modified the part of the one-step sampler which masks out error characters to boost the probability of a particular set of glyphs: here is an example of text with E, J, S and 3 (and their lower-case counterparts) boosted:
 
 ```
-seems even in some serse especially sees susceptible as equiveded to see the second 
-the exession of seeing experiences essentials essees, so sees as seen through each 
-other, as essential terms essentially essessity exhibited by esseesions ases especially 
-those exeresses is seen seesed to essess in some sessesses, especially sees seems 
-to attractest surfaces essential experiences. 333. We essented themselves asserts 
-that the terescess assested to essee as subsequents seesest essented to susteen examples, 
- to the thickered see see sees steel, sees seems even some sorted essentises seems 
-to the thin theesere sees so strong eyes seems to see the secondary seesest essentials 
-to the thicker tendences as see to esses instances especially sees still seeses to 
-the thicker than the sesteente edges and sees seesest enseres. Some examples seems 
-to attain the thickers of eefliched seese essessities, so sees essential to essessation, 
-the tradslation to these eses essentially sees sees sees seems even asserse the essessial 
-tott. 222. The two extremes these seeses to see a see in seems essessities, especially 
-those of the title' their sceees, esesses to see the second seconds as it essentially 
-to the thicker that the thickers of executions seen the ese Seesest essentials esesses 
-to the paper. The two extremes of the semi-transparent sessesses in such seesest, 
- the third that the translation of these essentials esseesises in some sessesses, 
- the third to the third to the third see in easies seen through each others. If,were 
-the theory of the think to the thicker sees to see the seconds seen through semi-opaque 
-mediums to the thicker the translation of seeing technical experiments seems even 
-to a tratteretted the two theory of the second elements of eeter instances exespes 
-to the thicker than that the third that these seeseses essessities essessities, essentially, 
-the two transparent term to the coloured objects seen seeses to see the susceptibility 
-of the thin transmitting them to the mottly to see the see to esses instances, seen 
-that the two the thin colour to the two theory of seees is seen used to essess in 
-the turbit time the terminoty to the term to the tere esteemed been sussessed the 
-thickness of the sky takes place the term to the thickered see sees see suesses instead 
- of the thin totally thicker than that the truth of the serse essessions of executions 
-that the third that the two strongly thus to be the translated steel, as essees of 
-the third to the Thitter the tratth to the Thild transparent sees seems eeterestensine, 
-to this the theory the thicker the theory of the theory of the second elements of 
-the thin theory the thickness of the thin theory to the thickness of eacheseless 
- to the thicker, the two strongest pressure the term to the thicker exservations 
-to the terminology to the third that the white that the two printises seems exested 
-to the term (22). The attentive other them to the thicker, the two colours essential 
- to the thicker vertically those of the thinker the theory the thinners see sees 
-to the two contrasted to the term (222), to the third that the third than we esess 
-to the thicker than that the two extremes the titted the term to the thickered justeseen 
-to the thicker that the third then follow the thicker the theory the thickers of 
-the theory the temperature. The two that the translator the translator the translators 
+n so seen these exerspessing selesses, so the eyes seems even sees even seen
+even especially sees jessessed sees in justages seems even some eleveness.
+See sees. "everything sees these experiments essees in semi-transparents
+meetes seems sees in some sees essential to each other seems to see sees these
+seconds essentially seess, these spectra messessed seen these exerspessing
+substances see yellow
 ```
 
-### A green circle on a red background
+The patterns were implemented by defining a function which takes an x, y pair defining the location on the page, and returns a set of character weights which will generate the correct colour for that point. The book is rendered in a monospaced font as a shortcut: theoretically it would be possible to calculate the location of each letter in a proportional-width font as it was rendered, but this would have involved too much intertwining of the text generation and the typesetting. I quite liked the default monospace font chosen by Pandoc, with its faint aroma of computer journals and concrete poetry anthologies from the seventies, but it doesn't include enough Unicode to render the Greek letters which the RNN occasionally generates, so I used DejaVu Sans Mono instead.
+
+The RNN was trained on [the Gutenberg edition Goethe's Theory of Colour in Charles Lock Eastlake's translation](https://www.gutenberg.org/cache/epub/50572/pg50572-images.html), both because it generates an appropriately colour-obsessed text, and because of Goethe's importance in the history of the philosophy of colour. Goethe was the defender of a notion of colour based on phenomenology and affect, in defiance of the scientific consensus following Newton. The colours of synaesthesia, whether they arise from childhood associations or some cross-wiring of sensory modalities on the individual brain, fall more on Goethe's side of this debate.
+
+Finally, although my initial idea that a fine-grained colour map could be used to produce a detailed image via a black and white text didn't work, I can report that the pages of _Colourless Light_ do seem to me to be coloured, in the curious indirect way in which grapheme synaesthesia works. It's never as if the characters themselves are coloured: the colour seems to be on some other plane. But looking at these pages is as close as I've felt to being able to see my own synaesthesia. It's even more solipsistic an exercise than NaNoGenMo usually is: you will be able to notice the different letter distributions, but even if you also have grapheme synaesthesia, you won't see the same colours as I do. Of course, you can edit [the config file](https://github.com/spikelynch/NaNoGenMo21/tree/main/config.json), and generate your own.
+
+### Instructions
+
+You'll need to install TensorFlow and PyYAML, and put the [trained checkpoint files](https://etc.mikelynch.org/nanogenmo2021/) in the directory `./trained_checkpoints/goethe`.
+
+The script to generate the novel as markdown is:
 
 ```
-surface of a stronger sees sees seems even asserted that seen the second elements 
-of execution is everynts, seen through semi-opaque mediums seems exhibited ese essential 
- to the surface of semi-transparent external exertions of seeing the second edetest 
-elements eses, we see the eyes on the eye essesses in some sort assumed to see a 
-serve is also seen that seen steel-wise sees a see the sun shines towards the effects 
-of experiments essential to the translation to the terms or even some senses, especially 
-sees still perceive the strong great the theory of the terms eres, essessities essessioned 
-in the seass of seeing the direction of the thin theory the edges are seen for the 
-second editions 3. First Coloured Objects VI. Coloured Stratts on every senses. 333. 
- If the series of the surface of the this theory the phenomena tendered nearest easily 
- exert essential to the thickness of the thinker, the two latter essents effects 
-are so seen that the most detical rutural thicker than that the two sessees of exessions 
-are emerged from the thin colour attaces the translator observes, the second edges 
-mistakes, exhibiting the theory the third think to the attentive observers of nature. 
-These exessional examples without the attentive observers them to the eyes as consequence 
-of the second class will be the result of this kitt to the light to the same sessesses, 
-especially those often according to the thicker that the bright tendency to exemplify 
-them is strictly attained that the two strongest state of the phenomena of the second 
-series is to be retired, that the tratity to the thicker that the two stresses as 
-essential to the thicker, the two foregoing Parts of the two classes themselves essential 
-to the eye to the titter, the two latter that the translation of the theory of see 
-sees sometimes the third to the other the third that the theory of colours asserts 
-susceptible to the strong then the thicker the most beautiful blue is to be seen 
-in seen in the third transfacting the thicker than that the thicker vapours of the 
-second elementary coloured border than the third than that this attention to these 
-examples, to trace the term that the its dark grounds to be the other, especially 
- is perhaps to the theory of the coloured attention to the coloured borders best 
- seems to extend to the same time to trace them, therefore, the translated steel-wise 
-so sooner extent it external light, it cannot be attributed to the Treesses as seen 
-through a serent of the coloured stratter the appearances that the surface of semi-transparent 
-mediums seems to follow the third than the third than that the theory see see sees 
-sees subsequently to brilliant coloured figures, and thus the theory of colours seems 
-to exemplify these to the attentive observers that the hue of emerges are so seen 
-that every second end other the motley. 
-
- [1] See Note on Pater--"Sisee of the Theory the two essessity especially sees as 
-the surface of seeing the eye essessions of exercises of semi-transparent essays 
-entirely see in speaking of the surface of semi-transparent mediums seems to see 
-the sun shines through each other seese to see a sole of seeing, especially is seen 
-in scarcely, essentially essessions, especially sees sees see some serse in some 
+% python ./farbenlehre.py -o myversion -n goethe -c config.json
 ```
 
-I also found that my initial idea of rendering different colours by suppressing letters didn't work very well. If I suppressed all letters other than those which look red to me (e, j, s and 3) the resulting output was too constrained to make sense: I tried another strategy, of trying to make red text by suppressing the letters and numbers which are complementary to it, but this didn't produce results which looked red.
+The PDF version was generated with Pandoc:
 
-Rather than suppressing letters, I tried boosting the weights of the letters for a particular colour: this technique is not, strictly speaking, a lipogram, but it produced the best results in terms of still being readable but having a noticeable synaesthetic effect.
+```
+pandoc --pdf-engine=xelatex -o output/myversion/colourless_light.pdf \
+    output/myversion/colourless_light.md
+```
 
 
+### Configuration
+
+```
+	"latex": {
+		"title": "Colourless Light",
+		"subtitle": "NaNoGenMo 2021",
+		"author": "Mike Lynch",
+		"geometry": "margin=3.6cm",
+		"linkcolor": "blue",
+		"monofont": "DejaVu Sans Mono"
+
+	},
+	"appendix": "README.md",
+	"output": "colourless_light.md",
+	"temperature": 0.4,
+	"page": {
+		"width": 80,
+		"height": 40
+	},
+	"order": [
+		"black", 
+		"blue", "green", "yellow",
+		"orange", "red", "purple", "gray",
+		"white"
+		],
+	"strength": 7,
+	"steepness": 3,
+	"colours": {
+		"red": "ejs3",
+		"purple": "dpru89",
+		"blue": "bkmnw4",
+		"green": "t2",
+		"yellow": "cl7",
+		"orange": "fghxq5",
+		"white": "aiy1",
+		"gray": "zv6",
+		"black": "o0"
+	}
+```
+
+#### latex
+
+A collection of Pandoc variables which are converted to YAML and added to the top of the Markdown file - these set the title, subtitle, author, margins, font and link colour.
+
+#### appendix
+
+Name of the file (this one!) which gets added to the text as the Appendix
+
+#### output
+
+Filename for the Markdown output
+
+#### temperature
+
+Temperature parameter for the RNN
+
+#### page
+
+Page geometry with width and height
+
+#### order
+
+Order of the colours fed to the algorithm which generates the sequence of colour pairs
+
+#### strength
+
+Weighting given to the letters which are being promoted
+
+#### steepness
+
+Steepness of the gradient between colour regions on the page. Higher values give a sharper transition.
+
+#### colours
+
+A mapping from colour names to sets of letters and numbers. The script will automatically include upper and lower case versions of letters.
 
